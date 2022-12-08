@@ -1,0 +1,46 @@
+ <!DOCTYPE html>
+<html>
+  <head>
+    <title>Authorization code flow</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <p>Authorization code (authentication model) Test</p>
+    <button id="authorize_button" onclick="handleAuthClick()">Authorize</button>
+    <button id="signout_button" onclick="handleSignoutClick()">Sign Out</button>
+    <button onclick="client.requestCode();">Authorize with Google</button>
+
+    <pre id="content" style="white-space: pre-wrap;"></pre>
+
+    <script src="https://accounts.google.com/gsi/client" onload="console.log('TODO: add onload function')">  </script>
+    <script type="text/javascript">
+        const client = google.accounts.oauth2.initCodeClient({
+            client_id: '113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com',
+            scope: 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/gmail.readonly',
+            ux_mode: 'popup',
+            
+            callback: (response) => {
+                console.log('Auth code response: ' + response);
+                console.log(response);
+
+                let xhr = new XMLHttpRequest();
+                xhr.open("POST", "/authentication/validateauthcode");
+                xhr.setRequestHeader("Accept", "application/json");
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        console.log(xhr.status);
+                        console.log(xhr.responseText);
+                }};
+                let data = `{
+                  "authentication_token": "response.credential"
+                }`;
+                let newText = data.replace(/response.credential/g, response.code);
+                console.log(newText);
+                xhr.send(newText);
+            },
+        });
+    </script>
+
+  </body>
+</html>

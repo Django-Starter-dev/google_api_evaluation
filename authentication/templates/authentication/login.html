@@ -1,0 +1,51 @@
+<html>
+  <body>
+      <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+      <script>
+        function handleCredentialResponse(response) {
+            console.log(response);
+            console.log("Encoded JWT ID token: " + response.credential);
+
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", "/authentication/validate");
+            xhr.setRequestHeader("Accept", "application/json");
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4) {
+                console.log(xhr.status);
+                console.log(xhr.responseText);
+              }
+            };
+
+            let data = `{
+              "authentication_token": "response.credential"
+            }`;
+
+            let newText = data.replace(/response.credential/g, response.credential);
+
+            console.log(newText);
+
+            xhr.send(newText);
+        }
+
+        window.onload = function () {
+          google.accounts.id.initialize({
+            client_id: "113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com",
+            callback: handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById("buttonDiv"),
+            { theme: "filled_blue", size: "large", shape: "pill", type: "standard", width: "300" }  // customization attributes
+          );
+          google.accounts.id.prompt(); // also display the One Tap dialog
+        }
+
+    </script>
+
+    <div id="buttonDiv"></div>
+    <h1> Title </h1>
+
+  </body>
+</html>
