@@ -40,6 +40,10 @@ class Application_User_Messages(models.Model):
     message_body = models.CharField(max_length=1000)
     date_received = models.CharField(max_length=100, default=None)
 
+class Message_History(models.Model):
+    Application_User = models.ForeignKey(Application_User, on_delete=models.CASCADE)
+    history_id = models.CharField(max_length=100, primary_key=True)
+
 
 
 

@@ -13,6 +13,8 @@
     <pre id="content" style="white-space: pre-wrap;"></pre>
 
     <script src="https://accounts.google.com/gsi/client" onload="console.log('TODO: add onload function')">  </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    
     <script type="text/javascript">
         const client = google.accounts.oauth2.initCodeClient({
             client_id: '113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com',
@@ -23,21 +25,24 @@
                 console.log('Auth code response: ' + response);
                 console.log(response);
 
-                let xhr = new XMLHttpRequest();
-                xhr.open("POST", "/authentication/validateauthcode");
-                xhr.setRequestHeader("Accept", "application/json");
-                xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState === 4) {
-                        console.log(xhr.status);
-                        console.log(xhr.responseText);
-                }};
-                let data = `{
-                  "authentication_token": "response.credential"
-                }`;
-                let newText = data.replace(/response.credential/g, response.code);
-                console.log(newText);
-                xhr.send(newText);
+                validateRequest = $.ajax({
+                  method: "POST",
+                  url: "/authentication/validateauthcode",
+                  dataType: "json",
+                  contentType: "application/json",
+                  data: JSON.stringify({ authentication_token: response.code})
+                });
+
+                validateRequest.done(function( response ) {
+                  console.log(response);
+                  alert( "success response: " + response );
+                  console.log(response.status);
+                  window.location.replace(response.redirect_uri);
+                });
+
+                validateRequest.fail(function( jqXHR, textStatus ) {
+                  alert( "error response: " + textStatus );
+                });
             },
         });
     </script>

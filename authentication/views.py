@@ -1,13 +1,18 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Application_User, Application_User_Credentials, Application_User_Messages
+from .models import Application_User, Application_User_Credentials, Application_User_Messages, Message_History
 import google_auth_oauthlib.flow
 import google.oauth2.credentials
 from googleapiclient.discovery import build
 import json
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_request
+from .businesslogic.UserRegistrationManagement import UserRegistrationManagement as UserManagement
+from .businesslogic.GmailServiceManagement import GmailServiceManagement as GmailService
+from threading import Thread
+import base64
+import time
 
 # Create your views here.
 
@@ -22,80 +27,40 @@ def signup(request):
 def login(request):
     return render(request, 'authentication/login.html');
 
+def home(request):
+    t = Thread(target=fetch_emails, args=[request]);
+    t.run();
+    return render(request, 'authentication/home.html');
+
 @csrf_exempt
 def validateauthcode(request):
 
-    data = request.body.decode('utf8')
-    data = json.loads(data)
-    auth_code = data.get('authentication_token')
+    auth_code = json.loads(request.body.decode('utf8')).get('authentication_token')
 
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'client_secret.json',
-        scopes=SCOPES
-    )
-    flow.redirect_uri = REDIRECT_URI;
-    flow.fetch_token(code=auth_code)
-    credentials = flow.credentials
+    credentials = UserManagement.get_cerdetials_from_google(REDIRECT_URI, SCOPES, auth_code);
 
-    # structure to be used when authenticating offline (without user interaction)
-    # [To-Do] create a method to convert credentials to dictionary
-    credentialsDictionary = {
-        'token' : 'ya29.a0AeTM1ieabsSiBfEpaHpZqDcKYlEMhHf_JLHHrEvTKvN6pE7SjdogkCzDl5mnforTOpjxSy_or-qq8Jj3Ab0Qqn194XFKB-8TB7UNkLgJbsm8eE1fBRt-_88kG-lMUke5Eo7NKYo_X87312YxbEA2HuZ-4wAgaCgYKATQSARASFQHWtWOmMqf3LYW0DoBgxbs2HrkPdQ0163', # string
-        'refresh_token' : '1//0gCyYEVgfAxLbCgYIARAAGBASNwF-L9IrVwZT9n1RrkGXiwdw3sQ1dPoaIwaDQXszvveKiwZ1A19dSmzwwLSoe8QbAsX27hEi3zo', # string
-        'token_uri' : credentials.token_uri, # string
-        'client_id' : credentials.client_id, # string
-        'client_secret' : credentials.client_secret # string
-        #'scopes' : credentials.scopes # string
-    };
-    
-    credentialsDto = Application_User_Credentials();
-    credentialsDto.token = credentials.token;
-    credentialsDto.refresh_token = credentials.refresh_token;
-    credentialsDto.token_uri = credentials.token_uri;
-    credentialsDto.client_id = credentials.client_id;
-    credentialsDto.client_secret = credentials.client_secret;
-    credentialsDto.scopes = credentials.scopes;
-    
-    #request.session['credentials'] = credentials_to_dict(credentials);
+    credentialsDictionary = UserManagement.credentials_to_dict(credentials);
     parsedCredentialsFromDictionary = google.oauth2.credentials.Credentials(**credentialsDictionary);
 
-    #oauth = build('oauth2', 'v2', credentials=credentials);
     oauth = build('oauth2', 'v2', credentials=parsedCredentialsFromDictionary);
-    
     userinfo = oauth.userinfo().get().execute();
-
-    # [To-Do] check if the user is already registered
-        # filter using email
-        # if user is not registered
-            # create a entry in Application_User and Application_User_Credentials
-        # else
-            # send error (User already registered)
-
     resultSet = Application_User.objects.filter(email=userinfo['email'])
-
     existingUserCount = len(resultSet);
     
+    responseDict = {}
+    
     if(existingUserCount == 0):
-        # Insert the new user in database
-        # [To-Do] create a method where you send userinfo and credentail DTO
-        # and it inserts everythong in database
-        applicationUserDto = Application_User();
-        applicationUserDto.id = userinfo['id'];
-        applicationUserDto.email = userinfo['email'];
-        applicationUserDto.is_email_verified = userinfo['verified_email'];
-        applicationUserDto.full_name = userinfo['name'];
-        applicationUserDto.first_name = userinfo['given_name'];
-        applicationUserDto.family_name = userinfo['family_name'];
-        applicationUserDto.profile_picture_url = userinfo['picture'];
-        applicationUserDto.default_locale = userinfo['locale'];
-        applicationUserDto.save();
+        registrationResponse = UserManagement.register_user(credentials, userinfo);
 
-        # Inseert user credential in database as well with foreign key
-        credentialsDto.Application_User = Application_User.objects.get(pk=applicationUserDto.id);
-        credentialsDto.save();
+        # success response
+        responseDict["status"] = "success"
+        responseDict["error_message"] = ""
+        responseDict["redirect_uri"] = "/authentication/home"
     else:
-        #Throw someking of error
-        print("user already registered")
+        # error response
+        responseDict["status"] = "error"
+        responseDict["rrror_message"] = "User already registered"
+        responseDict["redirect_uri"] = "/authentication/login"
 
     if (False):
         # call gmail api for testing 
@@ -145,23 +110,21 @@ def validateauthcode(request):
 
             gmailMessagesRequest = gmailService.users().messages().list_next(gmailMessagesRequest, messagesResponse)
     
+    responseJson = json.dumps(responseDict)
 
-    return HttpResponse();
+    return HttpResponse(responseJson);
 
-# [To-Do] test the endpoint after javascript origin has been verified
 @csrf_exempt
 def validate(request):
+
+    # adding a artificial delay so google dosen't throw "used token too early errpr";
+    time.sleep(2);
+
     data = request.body.decode('utf8')
     data = json.loads(data)
     dataInt = data.get('authentication_token')
     idinfo = id_token.verify_oauth2_token(dataInt, google_auth_request.Request(), CLIENT_ID)
-    #userid = idinfo['sub']
     email_address = idinfo['email'] 
-
-    # after you get the email address of user that is trying to log in
-        # check it against Application_User
-            # if you get a hit load the user and it's credentials 
-            # else send error ()
 
     resultSet = Application_User.objects.filter(email=email_address)
     existingUserCount = len(resultSet);
@@ -171,29 +134,147 @@ def validate(request):
         # fetch credentials from the database put it into a session maybe and send a success response to frontend so it can redirect user to homepage
         userid = resultSet[0].id;
         credentialsResult = Application_User_Credentials.objects.filter(Application_User=userid);
-        credentialsResultLength = len(credentialsResult);
+        
+        # To handle no credentials response from database (highly unlinkly scenario thus skipped)
+        #credentialsResultLength = len(credentialsResult);
 
         credentialsResultList = list(credentialsResult.values())
         existingUserResultList = list(resultSet.values())
 
-        request.session['Current_Application_User'] = credentialsResultList[0];
-        request.session['Current_Application_User_Credentials'] = existingUserResultList[0];
-        responseDict["Status"] = "success"
-        responseDict["ErrorMessage"] = ""
-    else:
-        responseDict["Status"] = "error"
-        responseDict["ErrorMessage"] = "User not registered"
+        request.session['Current_Application_User'] = existingUserResultList[0];
+        request.session['Current_Application_User_Credentials'] = credentialsResultList[0];
 
-        # if everything was successful redirect user to home screen
+        # form success response
+        responseDict["status"] = "success"
+        responseDict["error_message"] = ""
+        responseDict["redirect_uri"] = "/authentication/home"
+    else:
+        #form error response
+        responseDict["status"] = "error"
+        responseDict["rrror_message"] = "User not registered"
+        responseDict["redirect_uri"] = "/authentication/signup"
 
     responseJson = json.dumps(responseDict)
     
     return HttpResponse(responseJson)
 
-def credentials_to_dict(credentials):
-  return {'token': credentials.token,
-          'refresh_token': credentials.refresh_token,
-          'token_uri': credentials.token_uri,
-          'client_id': credentials.client_id,
-          'client_secret': credentials.client_secret,
-          'scopes': credentials.scopes}
+def fetch_emails(request):
+    
+    # work with history id's only call list() if there is no historyid in the database
+
+    ######################### moved to GmailService.getServiceFromSession() ###########################
+    application_user = request.session['Current_Application_User'];
+    # credentialsDictionary = request.session['Current_Application_User_Credentials'];
+
+    # manuallyCreatedCredentials = {
+    #     'token' : credentialsDictionary.get('token'),
+    #     'refresh_token' : credentialsDictionary.get('refresh_token'),
+    #     'token_uri' : credentialsDictionary.get('token_uri'),
+    #     'client_id' : credentialsDictionary.get('client_id'),
+    #     'client_secret' : credentialsDictionary.get('client_secret')
+    # }
+
+    # parsedCredentials = google.oauth2.credentials.Credentials(**manuallyCreatedCredentials);
+    
+    # gmailService = build('gmail', 'v1', credentials=parsedCredentials);
+    ###################################################################################################
+
+    gmailService = GmailService.getServiceFromSession(request.session);
+
+    # messageHistory = query to database for historyid against the application_user in session
+    # if(len(messageHistory>0))
+    #    api call to get the messageid and threadid from historyid gmailapi.users.messagaes.history or something
+    #else
+    #   fetch the messageid and threadid using the gmailapi.users.messages.list 
+    # used only when there is no history in the database
+
+    # note : historyId comes in reverse in full sync operation [order is new email -> old email]
+    # so instead of fetching the last historyid fetch first response's historyId to use in future
+
+    ######################### moved to GmailService.getUserHistory() ###########################
+    # historyRecord = Message_History.objects.filter(Application_User=application_user.get('id'));
+    # fetchingFromHistory :bool
+
+    # if(len(historyRecord) > 0):
+    #     historyRecordList = list(historyRecord.values())
+    #     fetchingFromHistory = True;
+    #     fetchedHistoryId = historyRecordList[0].get('history_id');
+    #     gmailMessagesRequest = gmailService.users().history().list(userId='me', startHistoryId=fetchedHistoryId)
+    # else:
+    #     fetchingFromHistory = False;
+    #     gmailMessagesRequest = gmailService.users().messages().list(userId='me', includeSpamTrash=False, maxResults=100)
+    ###################################################################################################
+
+    messageHistory = GmailService.getUserHistory(session=request.session, gmailService=gmailService);
+    gmailMessagesRequest = messageHistory.gmailMessagesRequest;
+
+    while gmailMessagesRequest is not None:
+        messagesResponse = gmailMessagesRequest.execute();
+
+        if messageHistory.fetchingFromHistory:
+            historyArray = messagesResponse['history']
+
+            for history in historyArray:
+                messagesArray = history['messages']
+
+        else:
+            messagesArray = messagesResponse['messages']
+        
+        for message in messagesArray:
+            messageDto = Application_User_Messages();
+            messageDto.Application_User = Application_User.objects.get(pk=application_user.get('id'));
+            parsedId = message['id']
+            parsedThreadId = message['threadId']
+            #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
+            gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
+
+            #tempResult = gmailMessagesDetailRequest.execute();
+            tempResult = gmailMessagesDetailRequest.execute();
+
+            
+            #rawBody = tempResult['raw'] # when format = raw
+            #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4));
+            #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4)).decode('utf-8');
+
+            body = tempResult.get('snippet');
+            body = tempResult['snippet'];
+            messageDto.message_body = body;
+            headersList = tempResult['payload']['headers']
+
+            for header in headersList:
+                if(header['name'] == "Message-ID"):
+                    messageId = header['value']
+                    messageDto.message_id = messageId;
+                if(header['name'] == "Date"):
+                    dateReceived = header['value']
+                    messageDto.date_received = dateReceived;
+                if(header['name'] == "Subject"):
+                    subject = header['value']
+                    messageDto.message_subject = subject;
+                if(header['name'] == "From"):
+                    fromAddress = header['value']
+                    messageDto.from_address = fromAddress;
+                if(header['name'] == "To"):
+                    toAddress = header['value']
+                    messageDto.to_address = toAddress;
+
+            try:
+                messageDto.save();
+            except Exception as ex:
+                print(ex)
+                continue;
+            
+            # [To-Do] pending adding the migrations
+            # trying to detect last iteration of the messagelist forloop
+            if message == messagesArray[0]: 
+                message_history = Message_History();
+                message_history.Application_User = messageDto.Application_User;
+                message_history.history_id = tempResult['historyId'];
+                message_history.save();
+                # store history id of that message in the message_history
+                
+        # save historyid in database
+        if messageHistory.fetchingFromHistory:
+            gmailMessagesRequest = gmailService.users().history().list_next(gmailMessagesRequest, messagesResponse)
+        else:
+            gmailMessagesRequest = gmailService.users().messages().list_next(gmailMessagesRequest, messagesResponse)
