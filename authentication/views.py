@@ -159,51 +159,9 @@ def validate(request):
     return HttpResponse(responseJson)
 
 def fetch_emails(request):
-    
-    # work with history id's only call list() if there is no historyid in the database
-
-    ######################### moved to GmailService.getServiceFromSession() ###########################
     application_user = request.session['Current_Application_User'];
-    # credentialsDictionary = request.session['Current_Application_User_Credentials'];
-
-    # manuallyCreatedCredentials = {
-    #     'token' : credentialsDictionary.get('token'),
-    #     'refresh_token' : credentialsDictionary.get('refresh_token'),
-    #     'token_uri' : credentialsDictionary.get('token_uri'),
-    #     'client_id' : credentialsDictionary.get('client_id'),
-    #     'client_secret' : credentialsDictionary.get('client_secret')
-    # }
-
-    # parsedCredentials = google.oauth2.credentials.Credentials(**manuallyCreatedCredentials);
-    
-    # gmailService = build('gmail', 'v1', credentials=parsedCredentials);
-    ###################################################################################################
 
     gmailService = GmailService.getServiceFromSession(request.session);
-
-    # messageHistory = query to database for historyid against the application_user in session
-    # if(len(messageHistory>0))
-    #    api call to get the messageid and threadid from historyid gmailapi.users.messagaes.history or something
-    #else
-    #   fetch the messageid and threadid using the gmailapi.users.messages.list 
-    # used only when there is no history in the database
-
-    # note : historyId comes in reverse in full sync operation [order is new email -> old email]
-    # so instead of fetching the last historyid fetch first response's historyId to use in future
-
-    ######################### moved to GmailService.getUserHistory() ###########################
-    # historyRecord = Message_History.objects.filter(Application_User=application_user.get('id'));
-    # fetchingFromHistory :bool
-
-    # if(len(historyRecord) > 0):
-    #     historyRecordList = list(historyRecord.values())
-    #     fetchingFromHistory = True;
-    #     fetchedHistoryId = historyRecordList[0].get('history_id');
-    #     gmailMessagesRequest = gmailService.users().history().list(userId='me', startHistoryId=fetchedHistoryId)
-    # else:
-    #     fetchingFromHistory = False;
-    #     gmailMessagesRequest = gmailService.users().messages().list(userId='me', includeSpamTrash=False, maxResults=100)
-    ###################################################################################################
 
     messageHistory = GmailService.getUserHistory(session=request.session, gmailService=gmailService);
     gmailMessagesRequest = messageHistory.gmailMessagesRequest;
@@ -221,55 +179,60 @@ def fetch_emails(request):
             messagesArray = messagesResponse['messages']
         
         for message in messagesArray:
-            messageDto = Application_User_Messages();
-            messageDto.Application_User = Application_User.objects.get(pk=application_user.get('id'));
-            parsedId = message['id']
-            parsedThreadId = message['threadId']
-            #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
-            gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
 
-            #tempResult = gmailMessagesDetailRequest.execute();
-            tempResult = gmailMessagesDetailRequest.execute();
+            ############################################### moved to GmailService.saveUserMessage#############################################
+            # messageDto = Application_User_Messages();
+            # messageDto.Application_User = Application_User.objects.get(pk=application_user.get('id'));
+            # parsedId = message['id']
+            # parsedThreadId = message['threadId']
+            # #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
+            # gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
+
+            # #tempResult = gmailMessagesDetailRequest.execute();
+            # tempResult = gmailMessagesDetailRequest.execute();
 
             
-            #rawBody = tempResult['raw'] # when format = raw
-            #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4));
-            #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4)).decode('utf-8');
+            # #rawBody = tempResult['raw'] # when format = raw
+            # #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4));
+            # #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4)).decode('utf-8');
 
-            body = tempResult.get('snippet');
-            body = tempResult['snippet'];
-            messageDto.message_body = body;
-            headersList = tempResult['payload']['headers']
+            # body = tempResult.get('snippet');
+            # body = tempResult['snippet'];
+            # messageDto.message_body = body;
+            # headersList = tempResult['payload']['headers']
 
-            for header in headersList:
-                if(header['name'] == "Message-ID"):
-                    messageId = header['value']
-                    messageDto.message_id = messageId;
-                if(header['name'] == "Date"):
-                    dateReceived = header['value']
-                    messageDto.date_received = dateReceived;
-                if(header['name'] == "Subject"):
-                    subject = header['value']
-                    messageDto.message_subject = subject;
-                if(header['name'] == "From"):
-                    fromAddress = header['value']
-                    messageDto.from_address = fromAddress;
-                if(header['name'] == "To"):
-                    toAddress = header['value']
-                    messageDto.to_address = toAddress;
+            # for header in headersList:
+            #     if(header['name'] == "Message-ID"):
+            #         messageId = header['value']
+            #         messageDto.message_id = messageId;
+            #     if(header['name'] == "Date"):
+            #         dateReceived = header['value']
+            #         messageDto.date_received = dateReceived;
+            #     if(header['name'] == "Subject"):
+            #         subject = header['value']
+            #         messageDto.message_subject = subject;
+            #     if(header['name'] == "From"):
+            #         fromAddress = header['value']
+            #         messageDto.from_address = fromAddress;
+            #     if(header['name'] == "To"):
+            #         toAddress = header['value']
+            #         messageDto.to_address = toAddress;
 
-            try:
-                messageDto.save();
-            except Exception as ex:
-                print(ex)
-                continue;
-            
+            # try:
+            #     messageDto.save();
+            # except Exception as ex:
+            #     print(ex)
+            #     continue;
+            ############################################### moved to GmailService.saveUserMessage#############################################
+
+            saveUserMessageResoponse = GmailService.saveUserMessage(session=request.session, message=message, gmailService=gmailService)
+
             # [To-Do] pending adding the migrations
             # trying to detect last iteration of the messagelist forloop
             if message == messagesArray[0]: 
                 message_history = Message_History();
-                message_history.Application_User = messageDto.Application_User;
-                message_history.history_id = tempResult['historyId'];
+                message_history.Application_User = saveUserMessageResoponse.messageDto.Application_User;
+                message_history.history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
                 message_history.save();
                 # store history id of that message in the message_history
                 

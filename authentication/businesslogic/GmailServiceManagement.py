@@ -7,6 +7,12 @@ class MessageHistoryResponse:
     fetchingFromHistory :bool;
     gmailMessagesRequest = None;
 
+class SaveUserMessageResponse:
+    messageDto :Application_User_Messages;
+    isSuccessful :bool;
+    errorMessage :str;
+    rawResult = None;
+
 class GmailServiceManagement:
 
     @staticmethod
@@ -29,6 +35,7 @@ class GmailServiceManagement:
 
         return build('gmail', 'v1', credentials=parsedCredentials);
     
+    @staticmethod
     def getUserHistory(session, gmailService):
         messageHistory = MessageHistoryResponse()
         fetchingFromHistory :bool
@@ -49,24 +56,22 @@ class GmailServiceManagement:
         messageHistory.fetchingFromHistory = fetchingFromHistory;
         return messageHistory;
 
-    def saveUserMessage(session, messageHistory, message, gmailService):
+    @staticmethod
+    def saveUserMessage(session, message, gmailService):
         application_user = session['Current_Application_User'];
         messageDto = Application_User_Messages();
+        response = SaveUserMessageResponse();
 
         messageDto.Application_User = Application_User.objects.get(pk=application_user.get('id'));
         parsedId = message['id']
         parsedThreadId = message['threadId']
         #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
         gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
-
         #tempResult = gmailMessagesDetailRequest.execute();
         tempResult = gmailMessagesDetailRequest.execute();
-
-            
         #rawBody = tempResult['raw'] # when format = raw
         #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4));
         #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4)).decode('utf-8');
-
         body = tempResult.get('snippet');
         body = tempResult['snippet'];
         messageDto.message_body = body;
@@ -91,9 +96,13 @@ class GmailServiceManagement:
         
         try:
             messageDto.save();
-            return True;
+            response.messageDto = messageDto;
+            response.isSuccessful = True;
+            response.rawResult = tempResult;
+            return response;
         except Exception as ex:
             print(ex)
-            return False;
+            response.isSuccessful = False;
+            return response;
 
 
