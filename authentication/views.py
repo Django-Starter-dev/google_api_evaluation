@@ -9,10 +9,13 @@ import json
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_request
 from .businesslogic.UserRegistrationManagement import UserRegistrationManagement as UserManagement
+from .businesslogic.UserRegistrationManagement import LoginUserData
 from .businesslogic.GmailServiceManagement import GmailServiceManagement as GmailService
 from threading import Thread
 import base64
 import time
+from django.http import JsonResponse
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 
 # Create your views here.
 
@@ -28,9 +31,18 @@ def login(request):
     return render(request, 'authentication/login.html');
 
 def home(request):
-    t = Thread(target=fetch_emails, args=[request]);
-    t.run();
-    return render(request, 'authentication/home.html');
+    page_number = request.GET.get('page')
+
+    if page_number == None:
+        t = Thread(target=fetch_emails, args=[request]);
+        #t.run();
+        t.start();
+
+    result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    paginator = Paginator(result_list, 10)
+    
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'authentication/home.html', {'page_obj': page_obj});
 
 @csrf_exempt
 def validateauthcode(request):
@@ -52,6 +64,18 @@ def validateauthcode(request):
     if(existingUserCount == 0):
         registrationResponse = UserManagement.register_user(credentials, userinfo);
 
+        resultSet = Application_User.objects.filter(email=userinfo['email'])
+        userid = resultSet[0].id;
+        credentialsResult = Application_User_Credentials.objects.filter(Application_User=userid);
+        
+        # To handle no credentials response from database (highly unlinkly scenario thus skipped)
+        #credentialsResultLength = len(credentialsResult);
+
+        credentialsResultList = list(credentialsResult.values())
+        existingUserResultList = list(resultSet.values())
+
+        request.session['Current_Application_User'] = existingUserResultList[0];
+        request.session['Current_Application_User_Credentials'] = credentialsResultList[0];
         # success response
         responseDict["status"] = "success"
         responseDict["error_message"] = ""
@@ -158,86 +182,75 @@ def validate(request):
     
     return HttpResponse(responseJson)
 
+# [To-Do]
+# fetching from history does not work
+# also handle a scenario where history is not available at all in the response
 def fetch_emails(request):
-    application_user = request.session['Current_Application_User'];
 
-    gmailService = GmailService.getServiceFromSession(request.session);
+    currentUserInfo = LoginUserData(request.session)
 
-    messageHistory = GmailService.getUserHistory(session=request.session, gmailService=gmailService);
+    gmailService = GmailService.getServiceFromSession(currentUserInfo);
+    messageHistory = GmailService.getUserHistory(currentUserInfo, gmailService);
     gmailMessagesRequest = messageHistory.gmailMessagesRequest;
 
+    itrCount = 0;
+    isSaveMessageHistory:bool;
+
     while gmailMessagesRequest is not None:
-        messagesResponse = gmailMessagesRequest.execute();
+        itrCount += 1;
+        if itrCount == 1: isSaveMessageHistory = True
+        else: isSaveMessageHistory = False
+        try:
+            messagesResponse = gmailMessagesRequest.execute();
+        except:
+            continue
 
         if messageHistory.fetchingFromHistory:
-            historyArray = messagesResponse['history']
-
-            for history in historyArray:
-                messagesArray = history['messages']
+            if messagesResponse.get('history') is not None:
+                historyArray = messagesResponse['history']
+                gmailMessagesRequest = gmailService.users().history().list_next(gmailMessagesRequest, messagesResponse)
+            
+                for history in historyArray:
+                    messagesArray = history['messages']
+                    GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory);
 
         else:
             messagesArray = messagesResponse['messages']
-        
-        for message in messagesArray:
-
-            ############################################### moved to GmailService.saveUserMessage#############################################
-            # messageDto = Application_User_Messages();
-            # messageDto.Application_User = Application_User.objects.get(pk=application_user.get('id'));
-            # parsedId = message['id']
-            # parsedThreadId = message['threadId']
-            # #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
-            # gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
-
-            # #tempResult = gmailMessagesDetailRequest.execute();
-            # tempResult = gmailMessagesDetailRequest.execute();
-
-            
-            # #rawBody = tempResult['raw'] # when format = raw
-            # #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4));
-            # #decodedRawBody = base64.urlsafe_b64decode(rawBody + '=' * (4 - len(rawBody) % 4)).decode('utf-8');
-
-            # body = tempResult.get('snippet');
-            # body = tempResult['snippet'];
-            # messageDto.message_body = body;
-            # headersList = tempResult['payload']['headers']
-
-            # for header in headersList:
-            #     if(header['name'] == "Message-ID"):
-            #         messageId = header['value']
-            #         messageDto.message_id = messageId;
-            #     if(header['name'] == "Date"):
-            #         dateReceived = header['value']
-            #         messageDto.date_received = dateReceived;
-            #     if(header['name'] == "Subject"):
-            #         subject = header['value']
-            #         messageDto.message_subject = subject;
-            #     if(header['name'] == "From"):
-            #         fromAddress = header['value']
-            #         messageDto.from_address = fromAddress;
-            #     if(header['name'] == "To"):
-            #         toAddress = header['value']
-            #         messageDto.to_address = toAddress;
-
-            # try:
-            #     messageDto.save();
-            # except Exception as ex:
-            #     print(ex)
-            #     continue;
-            ############################################### moved to GmailService.saveUserMessage#############################################
-
-            saveUserMessageResoponse = GmailService.saveUserMessage(session=request.session, message=message, gmailService=gmailService)
-
-            # [To-Do] pending adding the migrations
-            # trying to detect last iteration of the messagelist forloop
-            if message == messagesArray[0]: 
-                message_history = Message_History();
-                message_history.Application_User = saveUserMessageResoponse.messageDto.Application_User;
-                message_history.history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
-                message_history.save();
-                # store history id of that message in the message_history
-                
-        # save historyid in database
-        if messageHistory.fetchingFromHistory:
-            gmailMessagesRequest = gmailService.users().history().list_next(gmailMessagesRequest, messagesResponse)
-        else:
             gmailMessagesRequest = gmailService.users().messages().list_next(gmailMessagesRequest, messagesResponse)
+            GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory)
+
+@csrf_exempt
+def user_emails(request):
+    result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    return JsonResponse(result_list, safe=False)
+
+@csrf_exempt
+def paginated_user_emails(request):
+    page_number = request.GET.get('page')
+    result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    result_list.sort(reverse=True, key=myFunc)
+
+    paginator = Paginator(result_list, 50)
+    page_obj = paginator.get_page(page_number)
+   
+    try:
+        objects = paginator.page(page_number)
+    except PageNotAnInteger:
+        objects = paginator.page(1)
+    except EmptyPage:
+        objects = paginator.page(paginator.num_pages)
+    
+    data = {
+            'current' : page_number,
+            'has_previous' : objects.has_previous(),
+            'has_next' : objects.has_next(),
+            'previous_page': objects.has_previous() and objects.previous_page_number() or None,
+            'next_page': objects.has_next() and objects.next_page_number() or None,
+            'num_pages': paginator.num_pages,
+            'data': list(objects)
+        }
+    #return data
+    return JsonResponse(data, safe=False)
+
+def myFunc(e):
+  return e['internal_date']

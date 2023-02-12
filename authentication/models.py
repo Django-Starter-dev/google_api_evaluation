@@ -34,11 +34,12 @@ class Application_User_Credentials(models.Model):
 class Application_User_Messages(models.Model):
     Application_User = models.ForeignKey(Application_User, on_delete=models.CASCADE)
     message_id = models.CharField(max_length=100, primary_key=True)
-    from_address = models.CharField(max_length=100)
-    to_address = models.CharField(max_length=100)
-    message_subject = models.CharField(max_length=500)
-    message_body = models.CharField(max_length=1000)
-    date_received = models.CharField(max_length=100, default=None)
+    from_address = models.CharField(max_length=1000)
+    to_address = models.CharField(max_length=1000)
+    message_subject = models.CharField(max_length=1000, null=True)
+    message_body = models.CharField(max_length=1000, null=True)
+    date_received = models.CharField(max_length=100, default=None, null=True)
+    internal_date = models.CharField(max_length=100, default=None, null=True)
 
 class Message_History(models.Model):
     Application_User = models.ForeignKey(Application_User, on_delete=models.CASCADE)

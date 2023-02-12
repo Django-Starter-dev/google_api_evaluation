@@ -1,22 +1,154 @@
  <!DOCTYPE html>
 <html>
   <head>
+    {% load static %}
     <title>Authorization code flow</title>
     <meta charset="utf-8" />
-  </head>
-  <body>
-    <p>Authorization code (authentication model) Test</p>
-    <button id="authorize_button" onclick="handleAuthClick()">Authorize</button>
-    <button id="signout_button" onclick="handleSignoutClick()">Sign Out</button>
-    <button onclick="client.requestCode();">Authorize with Google</button>
-
-    <pre id="content" style="white-space: pre-wrap;"></pre>
-
     <script src="https://accounts.google.com/gsi/client" onload="console.log('TODO: add onload function')">  </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/e732dc7638.js" crossorigin="anonymous"></script>
+    <style>
+      .gradient-custom {
+          /* fallback for old browsers */
+        background: #6a11cb;
+
+        /* Chrome 10-25, Safari 5.1-6 */
+        background: -webkit-linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1));
+
+        /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+        background: linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1))
+      }
+
+      #btn_signup {
+        background-color: white;color: black; width: auto;
+        }
+
+      @media screen and (min-width: 1400px) {
+        #txt_signup {
+        margin: 55px; font-size: 14px; font-family: 'Google Sans',arial,sans-serif;
+        }
+      }
+  
+      /* On screens that are 600px wide or less,
+      the background color is yellow */
+      @media screen and (max-width: 1400px) {
+        #txt_signup {
+        margin: 20px; font-size: 14px; font-family: 'Google Sans',arial,sans-serif;
+        }
+      }
+
+      @media screen and (max-width: 770px) {
+        #txt_signup {
+        margin: 55px; font-size: 14px; font-family: 'Google Sans',arial,sans-serif;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+      <div class="container-fluid">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">Active</a>
+          </li>
+         <li class="nav-item">
+            <a class="nav-link" href="#">Link</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Link</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link disabled" href="#">Disabled</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <section class="vh-100 gradient-custom">
+      <div class="container py-5 h-100">
+        <div class="row d-flex justify-content-center align-items-center h-100">
+          <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+            <div class="card bg-dark text-white" style="border-radius: 0rem;">
+              <div class="card-body p-5 text-center">
+    
+                <div class="mb-md-5 mt-md-4 pb-5">
+                  
+                  <h2 class="mb-2">Email Management</h2>
+
+                  <!-- <h2 class="fw-bold mb-2 text-uppercase">Sign-Up</h2> -->
+
+                  <br/>
+                  <br/>
+                  
+                  
+                  <div style="margin-left: 72px;margin-right: 72px;">
+                    <div class="g_id_signin" data-auto_select="true" id="buttonDiv1" data-click_listener="alert('hi')"></div>
+                  </div>
+                </div>
+    
+                <div>
+                  <p class="mb-0">don't have an account? 
+                  </p>
+                  <br/>
+                  <button id="btn_signup" class="btn btn-md" 
+                  onclick="client.requestCode();" type="submit">
+                    <img src="{% static 'authentication/google.png' %}" style="width: 18px; height: 18px;" talt="Icon">
+                    <span id="txt_signup" > Sign up with Google </span>
+                  </button>
+                </div>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
     
     <script type="text/javascript">
-        const client = google.accounts.oauth2.initCodeClient({
+      window.onload = function () {
+        google.accounts.id.initialize({
+          client_id: "113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com",
+          callback: handleCredentialResponse
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("buttonDiv"),
+          { theme: "filled_blue", size: "large", shape: "pill", type: "standard", width: "280" }  // customization attributes
+        );
+        google.accounts.id.renderButton(
+          document.getElementById("buttonDiv1"),
+          { theme: "outline", size: "large", shape: "rectangle", type: "standard", auto_select: "true"}  // customization attributes
+        );
+        google.accounts.id.prompt(); // also display the One Tap dialog
+      }
+
+      function onClickHandler()
+      {
+        alert('hi');
+      }
+
+      function handleCredentialResponse(response) {
+
+        validateRequest = $.ajax({
+          method: "POST",
+          url: "/authentication/validate",
+          dataType: "json",
+          contentType: "application/json",
+          data: JSON.stringify({ authentication_token: response.credential})
+        });
+
+        validateRequest.done(function( response ) {
+          console.log(response);
+          //alert( "success response: " + response );
+          window.location.replace(response.redirect_uri);
+        });
+
+        validateRequest.fail(function( jqXHR, textStatus ) {
+          alert( "error response: " + textStatus );
+        });
+      }
+      // popup
+      const client = google.accounts.oauth2.initCodeClient({
             client_id: '113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com',
             scope: 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/gmail.readonly',
             ux_mode: 'popup',
@@ -35,7 +167,6 @@
 
                 validateRequest.done(function( response ) {
                   console.log(response);
-                  alert( "success response: " + response );
                   console.log(response.status);
                   window.location.replace(response.redirect_uri);
                 });
@@ -46,6 +177,5 @@
             },
         });
     </script>
-
   </body>
 </html>

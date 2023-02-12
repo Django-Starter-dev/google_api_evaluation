@@ -1,3 +1,339 @@
-<h1>Application Home</h1>
 
-<p></p>
+
+<!DOCTYPE html>
+<html>
+  <head>
+    {% load static %}
+    <title>Authorization code flow</title>
+    <meta charset="utf-8" />
+    <script src="https://accounts.google.com/gsi/client" onload="console.log('TODO: add onload function')">  </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/e732dc7638.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+    <style>
+      ::-webkit-scrollbar {
+          width: 12px
+      }
+      ::-webkit-scrollbar-thumb {
+          border-width: 1px 1px 1px 2px
+      }
+      ::-webkit-scrollbar-track {
+          border-width: 0
+      }
+      ::-webkit-scrollbar {
+          height: 16px;
+          overflow: visible;
+          width: 16px;
+      }
+      ::-webkit-scrollbar-button {
+          height: 0;
+          width: 0;
+      }
+      ::-webkit-scrollbar-track {
+          background-clip: padding-box;
+          border: solid transparent;
+          border-width: 0 0 0 4px;
+      }
+      ::-webkit-scrollbar-track:horizontal {
+          border-width: 4px 0 0
+      }
+      ::-webkit-scrollbar-track:hover {
+          background-color: rgba(220,172,0,.05);
+          box-shadow: inset 1px 0 0 rgba(220,172,0,.1);
+      }
+      ::-webkit-scrollbar-track:horizontal:hover {
+          box-shadow: inset 0 1px 0 rgba(220,172,0,.1)
+      }
+      ::-webkit-scrollbar-track:active {
+          background-color: rgba(220,172,0,.05);
+          box-shadow: inset 1px 0 0 rgba(220,172,0,.14),inset -1px 0 0 rgba(220,172,0,.07);
+      }
+      ::-webkit-scrollbar-track:horizontal:active {
+          box-shadow: inset 0 1px 0 rgba(220,172,0,.14),inset 0 -1px 0 rgba(220,172,0,.07)
+      }
+      ::-webkit-scrollbar-thumb {
+          background-color: rgb(46, 43, 34);
+          background-clip: padding-box;
+          border: solid transparent;
+          border-width: 1px 1px 1px 6px;
+          min-height: 28px;
+          padding: 100px 0 0;
+          box-shadow: inset 1px 1px 0 rgba(220,172,0,.1),inset 0 -1px 0 rgba(220,172,0,.07);
+      }
+      ::-webkit-scrollbar-thumb:horizontal {
+          border-width: 6px 1px 1px;
+          padding: 0 0 0 100px;
+          box-shadow: inset 1px 1px 0 rgba(255, 0, 0, 0.1),inset -1px 0 0 rgba(220,172,0,.07);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(220,172,0,.4);
+          box-shadow: inset 1px 1px 1px rgba(220,172,0,.25);
+      }
+      ::-webkit-scrollbar-thumb:active {
+          background-color: rgba(68, 0, 255, 0.5);
+          box-shadow: inset 1px 1px 3px rgb(111, 0, 255);
+      }
+      ::-webkit-scrollbar-track {
+          border-width: 0 1px 0 6px
+      }
+      ::-webkit-scrollbar-track:horizontal {
+          border-width: 6px 0 1px
+      }
+      ::-webkit-scrollbar-track:hover {
+          background-color: rgba(220,172,0,.035);
+          box-shadow: inset 1px 1px 0 rgba(220,172,0,.14),inset -1px -1px 0 rgba(220,172,0,.07);
+      }
+      ::-webkit-scrollbar-thumb {
+          border-width: 0 1px 0 6px
+      }
+      ::-webkit-scrollbar-thumb:horizontal {
+          border-width: 6px 0 1px
+      }
+      ::-webkit-scrollbar-corner {
+          background: transparent
+      }
+      body::-webkit-scrollbar-track-piece {
+          background-clip: padding-box;
+          background-color: #f5f5f5;
+          border: solid #fff;
+          border-width: 0 0 0 3px;
+          box-shadow: inset 1px 0 0 rgba(226, 225, 219, 0.14),inset -1px 0 0 rgba(220,172,0,.07);
+      }
+      body::-webkit-scrollbar-track-piece:horizontal {
+          border-width: 3px 0 0;
+          box-shadow: inset 0 1px 0 rgba(220,172,0,.14),inset 0 -1px 0 rgba(220,172,0,.07);
+      }
+      body::-webkit-scrollbar-thumb {
+          border-width: 1px 1px 1px 5px
+      }
+      body::-webkit-scrollbar-thumb:horizontal {
+          border-width: 5px 1px 1px
+      }
+      body::-webkit-scrollbar-corner {
+          background-clip: padding-box;
+          background-color: #f5f5f5;
+          border: solid #fff;
+          border-width: 3px 0 0 3px;
+          box-shadow: inset 1px 1px 0 rgba(220,172,0,.14);
+      }
+      .gradient-custom {
+        /* fallback for old browsers */
+        background: #6a11cb;
+
+        /* Chrome 10-25, Safari 5.1-6 */
+        background: -webkit-linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1));
+
+        /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+        background: linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1))
+      }
+
+      /* #paginatedUserMessagesTable {
+      } */
+
+      .pagination {
+        border: 1px solid black;
+        margin: 10px;
+        justify-content: right;
+      }
+
+      .step-links {
+        border: 1px solid red;
+        margin: 10px;
+        color: white;
+      }
+
+      #messages_wrapper {
+        border: 1px solid #6a11cb;
+        margin-right: 2%;
+        margin-top: 2%;
+      }
+
+      #table_wrapper {
+        overflow:scroll; 
+        height: 80vh;
+      }
+
+      body{
+        display: grid;
+        background-color: black;
+      }
+
+      table {
+        border-collapse: collapse;
+        border-radius: 0.5em;
+        overflow: hidden;
+      }
+    </style>
+    <script>
+      let global_response;
+      function paginatedUserMessageRequest(pageNumber)
+      {
+        $.ajax({
+          url: "{% url 'paginatedUserMessages'%}",
+          method: 'GET',
+          data: { 
+            page: pageNumber
+          },
+          success: function (response) {
+            console.log('paginated data with parameter')
+            console.log('response : ',response);
+            global_response = response;
+            
+            // update current span
+            $(".current").text("page " + response.current + " of " + response.num_pages)
+
+            if(response.has_next) $("#span_next").show(); else $("#span_next").hide();
+
+            if(response.has_previous) $("#span_previous").show(); else $("#span_previous").hide();
+
+            //$("#paginatedUserMessagesTable").empty()
+            $("#paginatedUserMessagesTable > tbody").html("");
+
+            $.each(response.data, function( index, value ) {
+              // console.log(index)
+              // console.log(value)
+              // console.log(value.from_address.split('<')[0])
+              // console.log(value.message_subject)
+              
+              var utcSeconds = value.internal_date;
+              let sec = Math.floor(value.internal_date / 1000);
+              var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
+              d.setUTCSeconds(sec);
+              //console.log(d)
+
+              //console.log(convertEpochToSpecificTimezone(value.internal_date, 5.30))
+
+              //console.log( index + ": " + value );
+              $("#paginatedUserMessagesTable").find('tbody')
+              .append( 
+                $('<tr>').append($('<td>').text(value.from_address.split('<')[0]))
+                .append($('<td>').text(value.message_subject)) 
+                .append($('<td>').text(d)) 
+              )
+            });
+          }
+        });
+      }
+
+      function convertEpochToSpecificTimezone(timeEpoch, offset){
+        let sec = Math.floor(timeEpoch / 1000);
+        var d = new Date(sec);
+        var utc = d.getTime() + (d.getTimezoneOffset() * 60000);  //This converts to UTC 00:00
+        var nd = new Date(utc + (3600000*offset));
+          //return nd.toLocaleString();
+
+        var datum = new Date(timeEpoch);
+          
+        var convertedDate = datum.epochConverterGMTString();
+        console.log(convertedDate);
+          
+      }
+
+      Date.prototype.epochConverterGMTString = function () {
+        if (typeof moment === "undefined") {
+          return this.toUTCString();
+        }
+
+        moment.locale('en');
+        var md = moment(this);
+        if (!md.isValid()) {
+          return 'Invalid input.';
+        }
+
+        var myLocaleData = moment.localeData(locale);
+        var myFormat = ecFixFormat(myLocaleData.longDateFormat('LLLL')).replace(/\[([^\]]*)\]/g, " "); // remove everything between []
+        if (md.format("SSS") != '000') {
+          myFormat = myFormat.replace(":mm", ":mm:ss.SSS");
+        } else {
+          myFormat = myFormat.replace(":mm", ":mm:ss");
+        }
+
+        return md.utc().format(myFormat);
+      }
+
+      window.onload = function () {
+
+        paginatedUserMessageRequest(1)
+
+        $("#btn_previous").click(function() {
+          console.log("global_response : ")
+          console.log(global_response)
+          if(global_response.has_previous)
+          {
+            paginatedUserMessageRequest(global_response.previous_page)
+          }
+        });
+
+        $("#btn_next").click(function() {
+          console.log("global_response : ")
+          console.log(global_response)
+          if(global_response.has_next)
+          {
+            paginatedUserMessageRequest(global_response.next_page)
+          }
+        });
+      }
+    </script>
+  </head>
+  <body>
+
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+      <div class="container-fluid">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">Email Management</a>
+          </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#">Emails</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Features</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link disabled" href="#">Disabled</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div>
+      <div class="container-fluid" style="max-width: 10vw; height: 94vh; border: 1px solid #6a11cb; float: left;">
+      </div>
+      <div class="container-fluid" id="messages_wrapper" style="float: right; max-width: 86vw;">
+        <div class="pagination" style="border: 1px solid #6a11cb;">
+          <span class="step-links">
+
+              <span id="span_previous">
+                  <a role="button" onclick="paginatedUserMessageRequest(1)">&laquo; first</a>
+                  <a role="button" id="btn_previous">previous</a>
+              </span>
+
+              <span class="current"></span>
+
+              <span id="span_next">
+                  <a role="button" id="btn_next">next</a>
+                  <a role="button" onclick="paginatedUserMessageRequest('{{ page_obj.paginator.num_pages }}')">last &raquo;</a>
+              </span>
+          </span>
+        </div>
+        <div id="table_wrapper">
+          <table id="paginatedUserMessagesTable" class="table table-dark table-hover">
+            <thead>
+              <tr>
+                <th scope="col">from address</th>
+                <th scope="col">subject</th>
+                <th scope="col">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

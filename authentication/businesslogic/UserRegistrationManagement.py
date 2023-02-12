@@ -2,6 +2,15 @@ from ..models import Application_User, Application_User_Credentials, Application
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 
+class LoginUserData:
+    currentUser: any
+    currentUserCredentials: any
+    
+    def __init__(self, session) -> None:
+        self.info = session['Current_Application_User']
+        self.credentials = session['Current_Application_User_Credentials']
+
+
 class UserRegistrationManagement:
 
     @staticmethod

@@ -6,5 +6,7 @@ urlpatterns = [
     path('login',views.login, name='Login_Template'),
     path('home',views.home, name='Home_Template'),
     path('validate',views.validate, name='validate'),
-    path('validateauthcode',views.validateauthcode, name='Validateauthcode_Endpoint')
+    path('validateauthcode',views.validateauthcode, name='Validateauthcode_Endpoint'),
+    path('jsonresponse/usermessages', views.user_emails, name='userMessages'),
+    path('jsonresponse/paginatedusermessages', views.paginated_user_emails, name='paginatedUserMessages'),
 ]
