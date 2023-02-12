@@ -22,7 +22,8 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 CLIENT_ID = '113162519004-1m4s4dblkf5b2cpe9tdf4c4grbvoi53q.apps.googleusercontent.com'
 SCOPES = 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/gmail.readonly'
 PARSEDSCOPES = '[openid, https://www.googleapis.com/auth/userinfo.email, https://www.googleapis.com/auth/userinfo.profile, https://www.googleapis.com/auth/gmail.readonly]'
-REDIRECT_URI = 'http://127.0.0.1:8000'
+#REDIRECT_URI = 'http://127.0.0.1:8000'
+REDIRECT_URI = 'http://localhost:8000'
 
 def signup(request):
     return render(request, 'authentication/signup.html');
@@ -141,7 +142,7 @@ def validateauthcode(request):
 @csrf_exempt
 def validate(request):
 
-    # adding a artificial delay so google dosen't throw "used token too early errpr";
+    # adding a artificial delay so google dosen't throw "used token too early error";
     time.sleep(2);
 
     data = request.body.decode('utf8')
@@ -200,10 +201,10 @@ def fetch_emails(request):
         itrCount += 1;
         if itrCount == 1: isSaveMessageHistory = True
         else: isSaveMessageHistory = False
-        try:
-            messagesResponse = gmailMessagesRequest.execute();
-        except:
-            continue
+        #try:
+        messagesResponse = gmailMessagesRequest.execute();
+        # except:
+        #     continue
 
         if messageHistory.fetchingFromHistory:
             if messagesResponse.get('history') is not None:
@@ -212,22 +213,37 @@ def fetch_emails(request):
             
                 for history in historyArray:
                     messagesArray = history['messages']
-                    GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory);
+                    GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory)
+            else:
+                history_id = messagesResponse.get('historyId')
+                GmailService.updateUserMessageHistory(history_id, currentUserInfo)
+                gmailMessagesRequest = None;
+
 
         else:
             messagesArray = messagesResponse['messages']
             gmailMessagesRequest = gmailService.users().messages().list_next(gmailMessagesRequest, messagesResponse)
             GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory)
 
+# seems like a dead endpoint [#TODO : check and remove]
 @csrf_exempt
 def user_emails(request):
+    # filter according to the user in the list
+    # resultSet = Application_User.objects.filter(email=userinfo['email'])
+    #currentUserInfo.currentUser.info.get('id')
+    #historyRecord = Message_History.objects.filter(Application_User=currentUser.info.get('id'))
+
+    currentUserInfo = LoginUserData(request.session)
     result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    result_list = list(Application_User_Messages.objects.filter(Application_User=currentUserInfo.currentUser.info.get('id')).values('message_id','from_address','to_address','message_subject','internal_date'))
     return JsonResponse(result_list, safe=False)
 
 @csrf_exempt
 def paginated_user_emails(request):
+    currentUserInfo = LoginUserData(request.session)
     page_number = request.GET.get('page')
-    result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    #result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
+    result_list = list(Application_User_Messages.objects.filter(Application_User=currentUserInfo.info.get('id')).values('message_id','from_address','to_address','message_subject','internal_date'))
     result_list.sort(reverse=True, key=myFunc)
 
     paginator = Paginator(result_list, 50)

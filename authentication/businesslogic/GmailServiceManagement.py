@@ -109,11 +109,21 @@ class GmailServiceManagement:
             response.isSuccessful = False;
             return response;
     
+    #[TODO : update this method to check whether the record already exists or not
+    # and if it does that update the record instead of inserting a new one]
     @staticmethod
     def saveUserMessageHistory(saveUserMessageResoponse):
         message_history = Message_History();
         message_history.Application_User = saveUserMessageResoponse.messageDto.Application_User;
         message_history.history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
+        message_history.save();
+    
+    @staticmethod
+    def updateUserMessageHistory(historyId: int, currentUser: LoginUserData):
+        message_history = Message_History();
+        message_history = Message_History.objects.get(Application_User = currentUser.info.get('id'));
+        #message_history.Application_User = Application_User.objects.get(pk=currentUser.info.get('id'));
+        message_history.history_id = historyId
         message_history.save();
 
     @staticmethod
