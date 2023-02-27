@@ -44,7 +44,7 @@ class GmailServiceManagement:
             historyRecordList = list(historyRecord.values())
             fetchingFromHistory = True;
             fetchedHistoryId = historyRecordList[0].get('history_id');
-            gmailMessagesRequest = gmailService.users().history().list(userId='me', startHistoryId=fetchedHistoryId)
+            gmailMessagesRequest = gmailService.users().history().list(userId='me', historyTypes='messageAdded', startHistoryId=fetchedHistoryId)
         else:
             fetchingFromHistory = False;
             gmailMessagesRequest = gmailService.users().messages().list(userId='me', includeSpamTrash=False, maxResults=100)
@@ -54,13 +54,18 @@ class GmailServiceManagement:
         return messageHistory;
 
     @staticmethod
-    def saveUserMessage(currentUser:LoginUserData, message, gmailService):
+    def saveUserMessage(currentUser:LoginUserData, message, gmailService, isFetchingFromHistory:bool):
         messageDto = Application_User_Messages();
         response = SaveUserMessageResponse();
 
         messageDto.Application_User = Application_User.objects.get(pk=currentUser.info.get('id'));
-        parsedId = message['id']
-        parsedThreadId = message['threadId']
+        if isFetchingFromHistory:
+            parsedId = message.get('message')['id']
+            parsedThreadId = message.get('threadId')
+        else:
+            parsedId = message['id']
+            parsedThreadId = message['threadId']
+        
         #gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="raw");
         gmailMessagesDetailRequest = gmailService.users().messages().get(userId='me', id=parsedId, format="full");
         #tempResult = gmailMessagesDetailRequest.execute();
@@ -99,7 +104,6 @@ class GmailServiceManagement:
         
         try:
             messageDto.message_id = parsedId;
-            #messageDto.save();
             response.messageDto = messageDto;
             response.isSuccessful = True;
             response.rawResult = tempResult;
@@ -108,31 +112,41 @@ class GmailServiceManagement:
             print(ex)
             response.isSuccessful = False;
             return response;
-    
-    #[TODO : update this method to check whether the record already exists or not
-    # and if it does that update the record instead of inserting a new one]
-    @staticmethod
-    def saveUserMessageHistory(saveUserMessageResoponse):
-        message_history = Message_History();
-        message_history.Application_User = saveUserMessageResoponse.messageDto.Application_User;
-        message_history.history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
-        message_history.save();
-    
-    @staticmethod
-    def updateUserMessageHistory(historyId: int, currentUser: LoginUserData):
-        message_history = Message_History();
-        message_history = Message_History.objects.get(Application_User = currentUser.info.get('id'));
-        #message_history.Application_User = Application_User.objects.get(pk=currentUser.info.get('id'));
-        message_history.history_id = historyId
-        message_history.save();
 
     @staticmethod
-    def processMessageArray(messagesArray, currentUser:LoginUserData, gmailService, isSaveMessageHistory):
+    def saveUserMessageHistory(saveUserMessageResoponse):
+        #resultSet = Application_User.objects.filter(email=userinfo['email'])
+        #existingUserCount = len(resultSet);
+        #message_history = Message_History();
+        message_history = Message_History.objects.filter(Application_User=saveUserMessageResoponse.messageDto.Application_User)
+        message_history_count = len(message_history);
+
+        if message_history_count == 0:
+            message_history = Message_History();
+            message_history.Application_User = saveUserMessageResoponse.messageDto.Application_User
+            message_history.history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
+            message_history.save();
+        else:
+            message_history.update(history_id=saveUserMessageResoponse.rawResult['historyId'])
+            Message_History.objects.filter(Application_User=saveUserMessageResoponse.messageDto.Application_User).update(history_id=saveUserMessageResoponse.rawResult['historyId'])
+            #message_history[0].history_id = saveUserMessageResoponse.rawResult['historyId'] #tempResult['historyId'];
+            #message_history[0].save();
+     
+    @staticmethod
+    def updateUserMessageHistory(historyId: int, currentUser: LoginUserData):
+        message_history = Message_History.objects.filter(Application_User = currentUser.info.get('id'))
+        message_history_count = len(message_history)
+        if message_history_count == 1:
+            message_history.update(history_id=historyId)
+            #Message_History.objects.filter(Application_User = currentUser.info.get('id')).update(history_id=historyId)
+
+    @staticmethod
+    def processMessageArray(messagesArray, currentUser:LoginUserData, gmailService, isSaveMessageHistory, isFetchingFromHistory:bool):
 
         messageList:list = [];
 
         for message in messagesArray:
-            saveUserMessageResoponse = GmailServiceManagement.saveUserMessage(currentUser, message, gmailService)
+            saveUserMessageResoponse = GmailServiceManagement.saveUserMessage(currentUser, message, gmailService, isFetchingFromHistory)
             messageList.append(saveUserMessageResoponse.messageDto)
 
             if (message == messagesArray[0]) & isSaveMessageHistory: 

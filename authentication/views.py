@@ -183,9 +183,9 @@ def validate(request):
     
     return HttpResponse(responseJson)
 
-# [To-Do]
+# [TODO]
 # fetching from history does not work
-# also handle a scenario where history is not available at all in the response
+# also handle a scenario where history is not available at all in the response [done]
 def fetch_emails(request):
 
     currentUserInfo = LoginUserData(request.session)
@@ -201,31 +201,38 @@ def fetch_emails(request):
         itrCount += 1;
         if itrCount == 1: isSaveMessageHistory = True
         else: isSaveMessageHistory = False
-        #try:
+        
         messagesResponse = gmailMessagesRequest.execute();
-        # except:
-        #     continue
+        
 
+        # while doing a partial sync
         if messageHistory.fetchingFromHistory:
-            if messagesResponse.get('history') is not None:
+            if messagesResponse.get('history') is not None: # this means there has been some activity
                 historyArray = messagesResponse['history']
                 gmailMessagesRequest = gmailService.users().history().list_next(gmailMessagesRequest, messagesResponse)
             
                 for history in historyArray:
-                    messagesArray = history['messages']
-                    GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory)
-            else:
+                    #messagesArray = history['messages']
+                    messagesArray = history['messagesAdded']
+                    history_id = messagesResponse.get('historyId')
+                    GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory, messageHistory.fetchingFromHistory)
+                    GmailService.updateUserMessageHistory(history_id, currentUserInfo)
+            
+            else: # this means there has been no actibity
                 history_id = messagesResponse.get('historyId')
                 GmailService.updateUserMessageHistory(history_id, currentUserInfo)
                 gmailMessagesRequest = None;
 
 
+        # while doing a full sync
         else:
             messagesArray = messagesResponse['messages']
             gmailMessagesRequest = gmailService.users().messages().list_next(gmailMessagesRequest, messagesResponse)
-            GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory)
+            GmailService.processMessageArray(messagesArray, currentUserInfo, gmailService, isSaveMessageHistory, messageHistory.fetchingFromHistory)
+    
+    return HttpResponse("ok")
 
-# seems like a dead endpoint [#TODO : check and remove]
+#[TODO : check if deadcode and remove]
 @csrf_exempt
 def user_emails(request):
     # filter according to the user in the list
@@ -242,7 +249,6 @@ def user_emails(request):
 def paginated_user_emails(request):
     currentUserInfo = LoginUserData(request.session)
     page_number = request.GET.get('page')
-    #result_list = list(Application_User_Messages.objects.all().values('message_id','from_address','to_address','message_subject','internal_date'))
     result_list = list(Application_User_Messages.objects.filter(Application_User=currentUserInfo.info.get('id')).values('message_id','from_address','to_address','message_subject','internal_date'))
     result_list.sort(reverse=True, key=myFunc)
 
@@ -265,8 +271,8 @@ def paginated_user_emails(request):
             'num_pages': paginator.num_pages,
             'data': list(objects)
         }
-    #return data
     return JsonResponse(data, safe=False)
 
 def myFunc(e):
   return e['internal_date']
+

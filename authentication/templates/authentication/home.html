@@ -26,9 +26,6 @@
         background: linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1))
       }
 
-      /* #paginatedUserMessagesTable {
-      } */
-
       .pagination {
         border: 1px solid black;
         margin: 10px;
@@ -64,7 +61,12 @@
       }
     </style>
     <script>
+      let myVar;
       let global_response;
+      let global_current_page=1;
+      var fetch_emails_interval_Id;
+      var fetch_paginated_request_Id;
+
       function paginatedUserMessageRequest(pageNumber)
       {
         $.ajax({
@@ -80,29 +82,22 @@
             
             // update current span
             $(".current").text("page " + response.current + " of " + response.num_pages)
+            global_current_page = response.current;
 
             if(response.has_next) $("#span_next").show(); else $("#span_next").hide();
 
             if(response.has_previous) $("#span_previous").show(); else $("#span_previous").hide();
 
-            //$("#paginatedUserMessagesTable").empty()
+            
             $("#paginatedUserMessagesTable > tbody").html("");
 
             $.each(response.data, function( index, value ) {
-              // console.log(index)
-              // console.log(value)
-              // console.log(value.from_address.split('<')[0])
-              // console.log(value.message_subject)
               
               var utcSeconds = value.internal_date;
               let sec = Math.floor(value.internal_date / 1000);
               var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
               d.setUTCSeconds(sec);
-              //console.log(d)
 
-              //console.log(convertEpochToSpecificTimezone(value.internal_date, 5.30))
-
-              //console.log( index + ": " + value );
               $("#paginatedUserMessagesTable").find('tbody')
               .append( 
                 $('<tr>').append($('<td>').text(value.from_address.split('<')[0]))
@@ -150,8 +145,32 @@
         return md.utc().format(myFormat);
       }
 
+      function startFetchingEmails()
+      {
+        if(global_current_page == 1)
+        {
+          $.ajax({
+            url: "{% url 'fetch_emails'%}",
+            method: 'GET',
+            success: function (response) {
+              // console.log("fetched user emails")
+              // paginatedUserMessageRequest(global_current_page)
+            }
+          })
+        }
+      }      
+
+      function startUpdatingTable()
+      {
+        paginatedUserMessageRequest(global_current_page);
+      }
+      
       window.onload = function () {
 
+        // call the fetch method continuously
+        fetch_emails_interval_Id = setInterval ( "startFetchingEmails()", 5000 );
+        fetch_paginated_request_Id = setInterval ( "startUpdatingTable()", 5000 );
+        
         paginatedUserMessageRequest(1)
 
         $("#btn_previous").click(function() {
